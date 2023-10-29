@@ -19,5 +19,7 @@ func main() {
 	router.Post("/posts", controllers.PostsController)
 	router.Post("/userposts", controllers.UserPostsController)
 
+	router.Get("/json_p_test", controllers.JsonPTestController)
+
 	engine.Run()
 }
