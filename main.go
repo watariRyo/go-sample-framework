@@ -17,6 +17,7 @@ func main() {
 
 	router.Get("/posts", controllers.PostsPageController)
 	router.Post("/posts", controllers.PostsController)
+	router.Post("/userposts", controllers.UserPostsController)
 
 	engine.Run()
 }

@@ -1,8 +1,11 @@
 package framework
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/textproto"
@@ -20,6 +23,17 @@ func NewMyContext(rw http.ResponseWriter, r *http.Request) *MyContext {
 		r:      r,
 		params: map[string]string{},
 	}
+}
+
+func (ctx *MyContext) BindJson(data any) error {
+	byteData, err := io.ReadAll(ctx.r.Body)
+	if err != nil {
+		return err
+	}
+
+	ctx.r.Body = io.NopCloser(bytes.NewBuffer(byteData))
+
+	return json.Unmarshal(byteData, data)
 }
 
 func (ctx *MyContext) Json(data any) {
@@ -106,4 +120,12 @@ func (ctx *MyContext) FormFile(key string) (*FormFileInfo, error) {
 		Header:   fileHeader.Header,
 		Size:     fileHeader.Size,
 	}, nil
+}
+
+func (ctx *MyContext) RenderHtml(filepath string, data any) error {
+	t, err := template.ParseFiles(filepath)
+	if err != nil {
+		return err
+	}
+	return t.Execute(ctx.rw, data)
 }
