@@ -62,6 +62,8 @@ func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	ctx := NewMyContext(rw, r)
 
+	ctx.Set("AuthUser", "test")
+
 	routingTable := e.Router.routingTables[strings.ToLower(r.Method)]
 
 	pathname := r.URL.Path
