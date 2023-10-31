@@ -25,7 +25,8 @@ func StudentsController(ctx *framework.MyContext) {
 }
 
 func ListController(ctx *framework.MyContext) {
-	ctx.WriteString("list")
+	list := make([]string, 0)
+	ctx.WriteString(list[3])
 }
 
 func ListItemController(ctx *framework.MyContext) {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -63,6 +65,8 @@ func (r *Router) Delete(pathname string, handler func(ctx *MyContext)) error {
 
 func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
+	fileServer := http.FileServer(http.Dir("./static"))
+
 	ctx := NewMyContext(rw, r)
 
 	ctx.Set("AuthUser", "test")
@@ -71,6 +75,16 @@ func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	pathname := r.URL.Path
 	pathname = strings.TrimSuffix(pathname, "/")
+
+	fPath := path.Join("./static", pathname)
+
+	fInfo, err := os.Stat(fPath)
+	fExist := err == nil && !fInfo.IsDir()
+	if fExist {
+		fileServer.ServeHTTP(rw, r)
+		return
+	}
+
 	targetNode := routingTable.Search(pathname)
 
 	if targetNode == nil || targetNode.handler == nil {
@@ -82,7 +96,14 @@ func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	ctx.SetParams(paramDicts)
 
 	ch := make(chan struct{})
+	panicCh := make(chan struct{})
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				panicCh <- struct{}{}
+			}
+		}()
+
 		// time.Sleep(time.Second * 1)
 		targetNode.handler(ctx)
 		ch <- struct{}{}
@@ -99,6 +120,9 @@ func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		ctx.rw.Write([]byte("timeout"))
 	case <-ch:
 		fmt.Println("finish")
+	case <-panicCh:
+		fmt.Println("panic")
+		ctx.rw.WriteHeader(http.StatusInternalServerError)
 	}
 
 	return
