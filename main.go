@@ -9,8 +9,12 @@ func main() {
 	engine := framework.NewEngine()
 	router := engine.Router
 
-	router.Get("/list", controllers.ListController)
-	router.Get("/lists/:list_id", controllers.ListItemController)
+	router.Get("/list", func(ctx *framework.MyContext) {
+		framework.TimeOutMiddleWare(ctx, controllers.ListController)
+	})
+	router.Get("/lists/:list_id", func(ctx *framework.MyContext) {
+		framework.TimeOutMiddleWare(ctx, controllers.ListItemController)
+	})
 	router.Get("/lists/:list_id/pictures/:picture_id", controllers.ListItemPictureItemController)
 	router.Get("/users", controllers.UsersController)
 	router.Get("/students", controllers.StudentsController)

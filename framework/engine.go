@@ -1,13 +1,10 @@
 package framework
 
 import (
-	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"path"
 	"strings"
-	"time"
 )
 
 type Engine struct {
@@ -95,37 +92,7 @@ func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	paramDicts := targetNode.ParaseParams(r.URL.Path)
 	ctx.SetParams(paramDicts)
 
-	ch := make(chan struct{})
-	panicCh := make(chan struct{})
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				panicCh <- struct{}{}
-			}
-		}()
-
-		// time.Sleep(time.Second * 1)
-		targetNode.handler(ctx)
-		ch <- struct{}{}
-	}()
-
-	durationContext, cancel := context.WithTimeout(r.Context(), time.Second*5)
-
-	defer cancel()
-
-	select {
-	case <-durationContext.Done():
-		ctx.SetHasTimeout(true)
-		fmt.Println("timeout")
-		ctx.rw.Write([]byte("timeout"))
-	case <-ch:
-		fmt.Println("finish")
-	case <-panicCh:
-		fmt.Println("panic")
-		ctx.rw.WriteHeader(http.StatusInternalServerError)
-	}
-
-	return
+	targetNode.handler(ctx)
 }
 
 func (e *Engine) Run() {

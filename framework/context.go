@@ -29,6 +29,14 @@ func NewMyContext(rw http.ResponseWriter, r *http.Request) *MyContext {
 	}
 }
 
+func (ctx *MyContext) Request() *http.Request {
+	return ctx.r
+}
+
+func (ctx *MyContext) ResponseWritor() http.ResponseWriter {
+	return ctx.rw
+}
+
 func (ctx *MyContext) Get(key string, defaultValue any) any {
 	ctx.mux.RLock()
 	defer ctx.mux.RUnlock()
