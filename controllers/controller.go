@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/watariRyo/go-sample-framework/framework"
 )
@@ -51,6 +52,7 @@ func ListItemPictureItemController(ctx *framework.MyContext) {
 }
 
 func UsersController(ctx *framework.MyContext) {
+	time.Sleep(time.Second * 4)
 	ctx.WriteString("users")
 }
 

@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/textproto"
 	"sync"
@@ -17,8 +18,10 @@ type MyContext struct {
 	r          *http.Request
 	params     map[string]string
 	keys       map[string]any
-	mux        sync.RWMutex
+	mux        *sync.RWMutex
 	hasTimeout bool
+	handlers   []func(ctx *MyContext)
+	index      int
 }
 
 func NewMyContext(rw http.ResponseWriter, r *http.Request) *MyContext {
@@ -26,7 +29,25 @@ func NewMyContext(rw http.ResponseWriter, r *http.Request) *MyContext {
 		rw:     rw,
 		r:      r,
 		params: map[string]string{},
+		mux:    &sync.RWMutex{},
+		index:  -1,
 	}
+}
+
+func (ctx *MyContext) SetHandlers(handlers []func(ctx *MyContext)) {
+	ctx.handlers = handlers
+}
+
+func (ctx *MyContext) Next() {
+	ctx.index += 1
+	for ctx.index < len(ctx.handlers) {
+		ctx.handlers[ctx.index](ctx)
+		ctx.index += 1
+	}
+}
+
+func (ctx *MyContext) Abort() {
+	ctx.index = math.MaxInt8
 }
 
 func (ctx *MyContext) Request() *http.Request {

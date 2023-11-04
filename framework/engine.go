@@ -1,9 +1,11 @@
 package framework
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"os"
-	"path"
+	"os/signal"
 	"strings"
 )
 
@@ -21,12 +23,23 @@ func NewEngine() *Engine {
 				"put":    Constructor(),
 				"delete": Constructor(),
 			},
+			middlewares: []func(ctx *MyContext){},
 		},
 	}
 }
 
 type Router struct {
 	routingTables map[string]*TreeNodes
+	middlewares   []func(ctx *MyContext)
+	noRoute       func(ctx *MyContext)
+}
+
+func (r *Router) Use(middleware func(ctx *MyContext)) {
+	r.middlewares = append(r.middlewares, middleware)
+}
+
+func (r *Router) UseNoRoute(handler func(ctx *MyContext)) {
+	r.noRoute = handler
 }
 
 func (r *Router) register(method string, pathname string, handler func(ctx *MyContext)) error {
@@ -62,8 +75,6 @@ func (r *Router) Delete(pathname string, handler func(ctx *MyContext)) error {
 
 func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
-	fileServer := http.FileServer(http.Dir("./static"))
-
 	ctx := NewMyContext(rw, r)
 
 	routingTable := e.Router.routingTables[strings.ToLower(r.Method)]
@@ -71,28 +82,46 @@ func (e *Engine) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	pathname := r.URL.Path
 	pathname = strings.TrimSuffix(pathname, "/")
 
-	fPath := path.Join("./static", pathname)
-
-	fInfo, err := os.Stat(fPath)
-	fExist := err == nil && !fInfo.IsDir()
-	if fExist {
-		fileServer.ServeHTTP(rw, r)
-		return
-	}
-
+	var targetHandler func(ctx *MyContext)
 	targetNode := routingTable.Search(pathname)
 
 	if targetNode == nil || targetNode.handler == nil {
-		rw.WriteHeader(http.StatusNotFound)
-		return
+		targetHandler = e.Router.noRoute
+		if targetHandler == nil {
+			defaultNotFoundHandler(ctx)
+			return
+		}
+
+	} else {
+		targetHandler = targetNode.handler
+		paramDicts := targetNode.ParaseParams(r.URL.Path)
+		ctx.SetParams(paramDicts)
 	}
 
-	paramDicts := targetNode.ParaseParams(r.URL.Path)
-	ctx.SetParams(paramDicts)
+	handlers := append(e.Router.middlewares, targetHandler)
+	ctx.SetHandlers(handlers)
 
-	targetNode.handler(ctx)
+	ctx.Next()
 }
 
 func (e *Engine) Run() {
-	http.ListenAndServe("localhost:8080", e)
+	ch := make(chan os.Signal)
+	signal.Notify(ch)
+
+	server := &http.Server{Addr: "localhost:8080", Handler: e}
+
+	go func() {
+		server.ListenAndServe()
+	}()
+	<-ch
+	fmt.Println("shutdown...")
+
+	if err := server.Shutdown(context.Background()); err != nil {
+		fmt.Println("error occurred at shutdown: ", err)
+	}
+	fmt.Println("shutdown completed")
+}
+
+func defaultNotFoundHandler(ctx *MyContext) {
+	ctx.ResponseWritor().WriteHeader(http.StatusNotFound)
 }
